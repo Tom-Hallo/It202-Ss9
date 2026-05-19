@@ -1,139 +1,207 @@
-CREATE DATABASE IF NOT EXISTS StudentManagement;
-USE StudentManagement;
+      
+CREATE DATABASE sales_management_system;
+USE sales_management_system;
 
-DROP TABLE IF EXISTS grade_log;
-DROP TABLE IF EXISTS grades;
-DROP TABLE IF EXISTS subjects;
-DROP TABLE IF EXISTS students;
-
-CREATE TABLE students (
-    student_id VARCHAR(5) PRIMARY KEY,
-    full_name VARCHAR(50) NOT NULL,
-    total_debt DECIMAL(10,2) DEFAULT 0.00
+CREATE TABLE customers (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    gender ENUM('Male', 'Female') NOT NULL,
+    birth_date DATE
 );
 
-CREATE TABLE subjects (
-    subject_id VARCHAR(5) PRIMARY KEY,
-    subject_name VARCHAR(50) NOT NULL,
-    credits INT,
-    CONSTRAINT chk_credits CHECK (credits > 0)
+CREATE TABLE categories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE grades (
-    student_id VARCHAR(5),
-    subject_id VARCHAR(5),
-    score DECIMAL(4,2),
-    PRIMARY KEY (student_id, subject_id), -- Khóa chính phức hợp
-    FOREIGN KEY (student_id) REFERENCES students(student_id),
-    FOREIGN KEY (subject_id) REFERENCES subjects(subject_id),
-    CONSTRAINT chk_score CHECK (score BETWEEN 0 AND 10)
+CREATE TABLE products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(150) NOT NULL,
+    price DECIMAL(18,2) NOT NULL CHECK(price >= 0),
+    category_id INT,
+
+    FOREIGN KEY(category_id)
+        REFERENCES categories(category_id)
 );
 
-CREATE TABLE grade_log (
-    log_id INT PRIMARY KEY AUTO_INCREMENT,
-    student_id VARCHAR(5),
-    old_score DECIMAL(4,2),
-    new_score DECIMAL(4,2),
-    change_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES students(student_id)
+CREATE TABLE orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT,
+    order_date DATE NOT NULL,
+
+    FOREIGN KEY(customer_id)
+        REFERENCES customers(customer_id)
 );
 
-INSERT INTO students (student_id, full_name, total_debt) VALUES 
-('SV01', 'Le Hoang Nam', 3500000.00), -- Phục vụ cho câu 4 (Đóng học phí)
-('SV03', 'Tran Quoc Anh', 0.00),       -- Sinh viên sạch nợ
-('SV04', 'Vu Phuong Thao', 1500000.00);
+CREATE TABLE order_details (
+    order_id INT,
+    product_id INT,
+    quantity INT NOT NULL CHECK(quantity > 0),
+    unit_price DECIMAL(18,2) NOT NULL CHECK(unit_price >= 0),
 
-INSERT INTO subjects (subject_id, subject_name, credits) VALUES 
-('SUB01', 'Database Systems', 3),
-('SUB02', 'Java Programming', 4),
-('SUB03', 'Web Development', 3);
+    PRIMARY KEY(order_id, product_id),
 
-INSERT INTO grades (student_id, subject_id, score) VALUES 
-('SV01', 'SUB01', 3.50),  -- Điểm < 4.0: Phục vụ test Câu 5 (Cho phép sửa điểm vì tạch môn)
-('SV01', 'SUB02', 7.50),  -- Điểm >= 4.0: Phục vụ test Câu 5 (Chặn sửa điểm vì đã qua môn)
-('SV04', 'SUB01', 5.00);
+    FOREIGN KEY(order_id)
+        REFERENCES orders(order_id),
 
-SELECT 'students' AS Table_Name, COUNT(*) AS Total_Rows FROM students
-UNION ALL
-SELECT 'subjects', COUNT(*) FROM subjects
-UNION ALL
-SELECT 'grades', COUNT(*) FROM grades
-UNION ALL
-SELECT 'grade_log', COUNT(*) FROM grade_log;
+    FOREIGN KEY(product_id)
+        REFERENCES products(product_id)
+);
 
--- Câu01
-DROP TRIGGER IF EXISTS ck_scores;
-DELIMITER // 
-CREATE TRIGGER ck_scores 
-BEFORE INSERT ON grades 
-FOR EACH ROW 
-BEGIN 
-    IF NEW.score < 0 THEN 
-        SET NEW.score = 0; 
-    ELSEIF NEW.score > 10 THEN 
-        SET NEW.score = 10; 
-    END IF; 
-END // 
-DELIMITER ;
+INSERT INTO customers(full_name, email, gender, birth_date)
+VALUES
+('Nguyen Van An', 'an@gmail.com', 'Male', '2001-05-10'),
+('Tran Thi Bich', 'bich@gmail.com', 'Female', '2000-09-21'),
+('Le Hoang Nam', 'nam@gmail.com', 'Male', '1999-12-15'),
+('Pham Thu Trang', 'trang@gmail.com', 'Female', '2002-03-08'),
+('Vo Minh Quan', 'quan@gmail.com', 'Male', '2003-11-30');
 
--- Câu02
-START TRANSACTION;
-INSERT INTO students (student_id, full_name)
-VALUES ('SV02', 'Ha Bich Ngoc');
-UPDATE students
-SET total_debt = 5000000
-WHERE student_id = 'SV02';
-COMMIT;
+INSERT INTO categories(category_name)
+VALUES
+('Dien tu'),
+('Laptop'),
+('Phu kien'),
+('Gaming'),
+('Van phong');
 
--- Câu03
-DROP TRIGGER IF EXISTS  tg_log_grade_update;
-DELIMITER // 
-CREATE TRIGGER  tg_log_grade_update  
-AFTER UPDATE ON grades 
-FOR EACH ROW 
-BEGIN 
-    IF NEW.score != OLD.score THEN 
-		INSERT INTO grade_log(student_id,old_score)
-        VALUES (NEW.student_id,OLD.score);
-    END IF; 
-END // 
-DELIMITER ;
+INSERT INTO products(product_name, price, category_id)
+VALUES
+('iPhone 15', 25000000, 1),
+('Samsung S24', 22000000, 1),
+('MacBook Air M2', 29000000, 2),
+('Dell XPS 15', 31000000, 2),
+('Tai nghe Bluetooth', 1200000, 3),
+('Chuot Gaming', 900000, 4),
+('Ban phim co', 1500000, 4),
+('May in Canon', 3500000, 5);
 
-UPDATE grades SET score = 10 WHERE subject_id = 'SUB02';
+INSERT INTO orders(customer_id, order_date)
+VALUES
+(1, '2026-05-01'),
+(2, '2026-05-02'),
+(1, '2026-05-03'),
+(4, '2026-05-04'),
+(5, '2026-05-05');
 
--- Câu04
-DROP PROCEDURE IF EXISTS sp_pay_tuition;
-DELIMITER //
-CREATE PROCEDURE sp_pay_tuition()
-BEGIN 
-	DECLARE current_debt DECIMAL(10,2);
-    START TRANSACTION;
-	
-    UPDATE students SET total_debt = total_debt - 2000000 WHERE student_id = 'SV01';
+INSERT INTO order_details(order_id, product_id, quantity, unit_price)
+VALUES
+(1, 1, 1, 25000000),
+(1, 5, 2, 1200000),
+(2, 3, 1, 29000000),
+(3, 2, 1, 22000000),
+(3, 6, 1, 900000),
+(4, 4, 1, 31000000),
+(5, 7, 2, 1500000);
+
+UPDATE products
+SET price = 27000000
+WHERE product_name = 'iPhone 15';
+
+-- Cập nhật email khách hàng
+UPDATE customers
+SET email = 'new_an@gmail.com'
+WHERE customer_id = 1;
+
+SET SQL_SAFE_UPDATES = 0;
+DELETE FROM order_details
+WHERE order_id = 5
+AND product_id = 7;
+SET SQL_SAFE_UPDATES = 1;
+
+SELECT full_name AS 'hoten',email as 'email',
+case
+	when gender = 'male' then 'nam'
+    else 'nu'
+end 'gioitinh' from customers;
+
+select full_name, year(now())-year(birth_date) as 'age' from customers order by age asc limit 3;
+
+select o.*, c.full_name
+from orders o join customers c on o.customer_id=c.customer_id;
+
+SELECT
+    c.category_name,
+    COUNT(p.product_id) AS total_products
+FROM categories c
+JOIN products p
+ON c.category_id = p.category_id
+GROUP BY c.category_id, c.category_name
+HAVING COUNT(p.product_id) >= 2;
+
+SELECT *
+FROM products
+WHERE price >
+(
+    SELECT AVG(price)
+    FROM products
+);
+
+SELECT *
+FROM customers
+WHERE customer_id NOT IN
+(
+    SELECT customer_id
+    FROM orders
+);
+
+SELECT
+    c.category_name,
+    SUM(od.quantity * od.unit_price) AS total_revenue
+FROM categories c
+JOIN products p
+    ON c.category_id = p.category_id
+JOIN order_details od
+    ON p.product_id = od.product_id
+GROUP BY c.category_id, c.category_name
+HAVING SUM(od.quantity * od.unit_price)
+>
+(
+    SELECT AVG(total_money) * 1.2
+    FROM
+    (
+        SELECT
+            SUM(od.quantity * od.unit_price) AS total_money
+        FROM categories c
+        JOIN products p
+            ON c.category_id = p.category_id
+        JOIN order_details od
+            ON p.product_id = od.product_id
+        GROUP BY c.category_id
+    ) temp
+);
+
+SELECT *
+FROM products p1
+WHERE price =
+(
+    SELECT MAX(price)
+    FROM products p2
+    WHERE p1.category_id = p2.category_id
+);
+
+SELECT DISTINCT full_name
+FROM customers
+WHERE customer_id IN
+(
+    SELECT customer_id
+    FROM orders
+    WHERE order_id IN
+    (
+        SELECT order_id
+        FROM order_details
+        WHERE product_id IN
+        (
+            SELECT product_id
+            FROM products
+            WHERE category_id IN
+            (
+                SELECT category_id
+                FROM categories
+                WHERE category_name = 'Dien tu'
+            )
+        )
+    )
+);
+
     
-    SELECT total_debt INTO current_debt FROM students WHERE student_id = 'SV01';
-    
-    IF current_debt < 0 THEN	
-		ROLLBACK;
-	ELSE
-		COMMIT;
-    END IF;
-END //
-DELIMITER ;
-
-CALL sp_pay_tuition();
-SELECT * FROM students WHERE student_id = 'SV01';
-
--- Câu 05
-DROP TRIGGER IF EXISTS tg_prevent_pass_update;
-DELIMITER //
-CREATE TRIGGER tg_prevent_pass_update
-BEFORE UPDATE ON grades
-FOR EACH ROW
-BEGIN 
-    IF OLD.score >= 4.0 THEN 
-		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Không thể cập nhật điểm';
-	END IF;
-END //
-DELIMITER ;	
-
